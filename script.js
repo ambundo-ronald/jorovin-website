@@ -34,6 +34,42 @@ loadStylesheet('contact-channels.css');
 loadStylesheet('forms.css');
 loadStylesheet('brand-updates.css');
 loadStylesheet('responsive-fixes.css');
+loadStylesheet('analytics-consent.css');
+
+const GA_MEASUREMENT_ID = 'G-610GPN48S9';
+const analyticsConsent = localStorage.getItem('jorovin_analytics_consent');
+const loadAnalytics = () => {
+  if (window.gtag) return;
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(){ window.dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', GA_MEASUREMENT_ID, { anonymize_ip: true });
+  const analyticsScript = document.createElement('script');
+  analyticsScript.async = true;
+  analyticsScript.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+  document.head.appendChild(analyticsScript);
+};
+if (analyticsConsent === 'granted') loadAnalytics();
+
+const showCookieNotice = () => {
+  if (document.querySelector('.cookie-notice')) return;
+  const notice = document.createElement('section');
+  notice.className = 'cookie-notice';
+  notice.setAttribute('aria-label', 'Cookie preferences');
+  notice.innerHTML = '<div><strong>Your privacy matters</strong><p>We use optional Google Analytics cookies to understand website usage and improve our services. You can accept or decline analytics. <a href="privacy.html#cookies">Privacy details</a></p></div><div class="cookie-actions"><button type="button" class="cookie-decline">Decline</button><button type="button" class="cookie-accept">Accept analytics</button></div>';
+  document.body.appendChild(notice);
+  requestAnimationFrame(() => notice.classList.add('show'));
+  notice.querySelector('.cookie-accept').addEventListener('click', () => {
+    localStorage.setItem('jorovin_analytics_consent', 'granted');
+    loadAnalytics();
+    notice.remove();
+  });
+  notice.querySelector('.cookie-decline').addEventListener('click', () => {
+    localStorage.setItem('jorovin_analytics_consent', 'denied');
+    notice.remove();
+  });
+};
+if (!analyticsConsent) window.addEventListener('DOMContentLoaded', showCookieNotice);
 const siteUrl = 'https://www.jorovin.com';
 const cleanPath = location.pathname.endsWith('index.html') ? '/' : location.pathname;
 if (!document.querySelector('link[rel="canonical"]')) {
@@ -109,6 +145,9 @@ whatsapp.rel = 'noopener noreferrer';
 whatsapp.setAttribute('aria-label', 'Chat with Jorovin on WhatsApp');
 whatsapp.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3a12.7 12.7 0 0 0-10.9 19.2L3.4 28.6l6.5-1.7A12.8 12.8 0 1 0 16 3Zm0 22.7c-2 0-3.9-.6-5.5-1.6l-.4-.2-3.8 1 1-3.7-.3-.4a10 10 0 1 1 9 4.9Zm5.5-7.5c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2l-1 1.2c-.2.2-.4.2-.7 0-1.8-.9-3-1.7-4.2-3.8-.3-.5.3-.5.9-1.6.1-.2 0-.5 0-.7l-1-2.4c-.3-.6-.6-.5-.8-.5h-.7c-.2 0-.6.1-1 .5-1 1-.9 2.4-.8 2.7.1 1.4 1 2.8 1.2 3 1.3 2 3.2 3.6 5.4 4.5 2 .9 2.7 1 3.7.8 1.2-.2 2.1-.9 2.4-1.7.3-.8.3-1.5.2-1.7-.2-.2-.5-.3-.8-.5Z"/></svg><span>Chat with us</span>';
 document.body.appendChild(whatsapp);
+whatsapp.addEventListener('click', () => {
+  if (window.gtag) window.gtag('event', 'whatsapp_click', { event_category: 'contact', event_label: cleanPath });
+});
 
 document.querySelectorAll('footer .footer-top').forEach(footerTop => {
   const contactBlock = document.createElement('div');
@@ -120,8 +159,12 @@ document.querySelectorAll('footer .footer-bottom').forEach(bottom => {
   if (!bottom.querySelector('.legal-links')) {
     const legal = document.createElement('span');
     legal.className = 'legal-links';
-    legal.innerHTML = '<a href="privacy.html">Privacy</a><a href="terms.html">Terms</a>';
+    legal.innerHTML = '<a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><button type="button" class="cookie-preferences">Cookie preferences</button>';
     bottom.appendChild(legal);
+    legal.querySelector('.cookie-preferences').addEventListener('click', () => {
+      localStorage.removeItem('jorovin_analytics_consent');
+      showCookieNotice();
+    });
   }
 });
 
@@ -188,6 +231,7 @@ if (contactForm) {
       status.classList.add('is-success');
       status.textContent = 'Thank you. Your enquiry has been sent to our sales team.';
       button.textContent = 'Enquiry sent';
+      if (window.gtag) window.gtag('event', 'generate_lead', { event_category: 'contact_form', event_label: cleanPath });
     } catch (error) {
       status.classList.add('is-error');
       status.textContent = 'We could not send your enquiry. Please try again or email sales@jorovin.com.';
